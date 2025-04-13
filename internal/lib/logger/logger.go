@@ -36,7 +36,7 @@ func SetupLogger(env string) *logrus.Logger {
 	// Настройка логирования в зависимости от окружения
 	switch env {
 	case "prod":
-		log.SetLevel(logrus.WarnLevel)            // В продакшене логируем только предупреждения и ошибки
+		log.SetLevel(logrus.InfoLevel)            // В продакшене логируем только предупреждения и ошибки
 		log.SetFormatter(&logrus.JSONFormatter{}) // В продакшене выводим логи в формате JSON
 	case "test":
 		log.SetLevel(logrus.InfoLevel) // В тестах логируем информационные сообщения и ошибки
