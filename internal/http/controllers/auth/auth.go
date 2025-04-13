@@ -147,7 +147,7 @@ func (a *AuthController) Activation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/auth/test", http.StatusSeeOther)
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	op := "Controller.Login"
