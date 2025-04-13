@@ -40,6 +40,7 @@ type JWTInfo struct {
 
 type HTTPServerConfig struct {
 	Address      string        `yaml:"address"`
+	DomenName    string        `yaml:"domen_name"`
 	ReadTimeout  time.Duration `yaml:"read_timeout" env-default:"4s"`
 	WriteTimeout time.Duration `yaml:"write_timeout" env-default:"4s"`
 	IdleTimeout  time.Duration `yaml:"idle_timeout" env-default:"60s"`

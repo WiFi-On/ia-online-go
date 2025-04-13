@@ -72,7 +72,7 @@ func main() {
 		referralService,
 	)
 
-	authService := AuthService.New(log, cfg.HTTPServerConfig.Address, storage, storage, storage, storage, tokenService, emailService, userService, passwordCodeService)
+	authService := AuthService.New(log, cfg.HTTPServerConfig.DomenName, storage, storage, storage, storage, tokenService, emailService, userService, passwordCodeService)
 
 	// Инициализация валидатора
 	validator := validator.New()

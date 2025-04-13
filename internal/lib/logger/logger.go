@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"io"
 	"os"
 	"time"
 
@@ -28,7 +29,11 @@ func SetupLogger(env string) *logrus.Logger {
 		if err != nil {
 			log.Fatal(err)
 		}
-		log.SetOutput(logFile) // В продакшн выводим в файл
+
+		// Используем MultiWriter, чтобы писать логи в файл и в консоль
+		log.SetOutput(os.Stdout) // Выводим логи в консоль
+		multiWriter := io.MultiWriter(logFile, os.Stdout)
+		log.SetOutput(multiWriter) // Устанавливаем мультипоток для записи и в файл, и в консоль
 	} else {
 		log.SetOutput(os.Stdout) // Выводим только в консоль
 	}
