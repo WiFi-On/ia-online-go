@@ -85,10 +85,10 @@ func (b *BitrixService) SendDeal(ctx context.Context, lead dto.LeadDTO, user dto
 		services = append(services, 514)
 	}
 	if lead.IsCleaning {
-		services = append(services, 512)
+		services = append(services, 510)
 	}
 	if lead.IsShipping {
-		services = append(services, 510)
+		services = append(services, 512)
 	}
 
 	data := map[string]any{
