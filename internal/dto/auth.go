@@ -5,7 +5,7 @@ type RegisterUserDTO struct {
 	Password       string `json:"password" validate:"required,complexpassword"`
 	RepeatPassword string `json:"repeat_password" validate:"required,eqfield=Password"`
 	Telegram       string `json:"telegram" validate:"omitempty"`
-	PhoneNumber    string `json:"phone_number" validate:"e164"`
+	PhoneNumber    string `json:"phone_number" validate:"required"`
 	Name           string `json:"name" validate:"required"`
 	City           string `json:"city" validate:"required"`
 	ReferralCode   string `json:"referral_code" validate:"omitempty"`
