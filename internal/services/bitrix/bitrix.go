@@ -82,13 +82,13 @@ func (b *BitrixService) SendDeal(ctx context.Context, lead dto.LeadDTO, user dto
 
 	var services []int
 	if lead.IsInternet {
-		services = append(services, 510)
+		services = append(services, 514)
 	}
 	if lead.IsCleaning {
 		services = append(services, 512)
 	}
 	if lead.IsShipping {
-		services = append(services, 514)
+		services = append(services, 510)
 	}
 
 	data := map[string]any{
