@@ -77,8 +77,18 @@ func (e *EmailService) SendEmail(ctx context.Context, toAddress, subject, body s
 	if err != nil {
 		return fmt.Errorf("%s: ошибка открытия потока для данных: %w", op, err)
 	}
-	// Создаем сообщение с заголовком Content-Type для HTML
-	message := fmt.Sprintf("Subject: %s\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n%s", subject, body)
+
+	message := fmt.Sprintf(
+		"From: %s\r\n"+
+			"To: %s\r\n"+
+			"Subject: %s\r\n"+
+			"MIME-Version: 1.0\r\n"+
+			"Content-Type: text/html; charset=UTF-8\r\n"+
+			"Content-Transfer-Encoding: 7bit\r\n\r\n"+
+			"%s",
+		e.Email, toAddress, subject, body,
+	)
+
 	_, err = w.Write([]byte(message))
 	if err != nil {
 		return fmt.Errorf("%s: ошибка записи сообщения: %w", op, err)

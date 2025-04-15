@@ -172,6 +172,17 @@ func (l *LeadService) EditDeal(ctx context.Context, arrInfoBitrix []string) erro
 		return fmt.Errorf("%s: статус не найден для %s", op, infoDeal.Result.Status)
 	}
 
+	var paymentAt *time.Time
+	var completedAt *time.Time
+	if status == 4 {
+		now := time.Now()
+		completedAt = &now
+	}
+	if status == 5 {
+		now := time.Now()
+		paymentAt = &now
+	}
+
 	// Преобразуем строки в float64
 	internetPayment, err := strconv.ParseFloat(infoDeal.Result.InternetPayment, 64)
 	if err != nil {
@@ -196,7 +207,7 @@ func (l *LeadService) EditDeal(ctx context.Context, arrInfoBitrix []string) erro
 		&internetPayment,
 		&cleaningPayment,
 		&shippingPayment,
-		nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, completedAt, paymentAt,
 	)
 
 	return nil
