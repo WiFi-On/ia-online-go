@@ -198,10 +198,22 @@ func (s *Storage) UserIdByTelegram(ctx context.Context, telegram string) (int64,
 func (s *Storage) ValidationUser(ctx context.Context, email string, phone string, telegram string) error {
 	const op = "storage.user.ValidationUser"
 
-	var count int
-	query := `SELECT COUNT(*) FROM users WHERE phone_number = $1 OR email = $2 OR telegram = $3`
+	var (
+		query string
+		args  []interface{}
+	)
 
-	err := s.db.QueryRowContext(ctx, query, phone, email, telegram).Scan(&count)
+	// Формируем запрос в зависимости от наличия telegram
+	if telegram != "" {
+		query = `SELECT COUNT(*) FROM users WHERE phone_number = $1 OR email = $2 OR telegram = $3`
+		args = []interface{}{phone, email, telegram}
+	} else {
+		query = `SELECT COUNT(*) FROM users WHERE phone_number = $1 OR email = $2`
+		args = []interface{}{phone, email}
+	}
+
+	var count int
+	err := s.db.QueryRowContext(ctx, query, args...).Scan(&count)
 	if err != nil {
 		return fmt.Errorf("%s: %w", op, err)
 	}
