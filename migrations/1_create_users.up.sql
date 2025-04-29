@@ -18,3 +18,29 @@ CREATE TABLE users (
    is_active BOOLEAN DEFAULT false,
    roles user_role[] DEFAULT ARRAY['user'::user_role]
 );
+
+-- Это пользователь нужен для комментов. Через него нельзя будет зайти в учетку
+INSERT INTO users (
+    id,
+    phone_number,
+    email,
+    name,
+    telegram,
+    city,
+    password_hash,
+    referral_code,
+    is_active,
+    roles
+) VALUES (
+    228,
+    '+12345678901123',                            -- пример номера
+    'manager@example.com',                   -- пример почты
+    'Manager Name',                          -- имя
+    '@manager_telegram',                     -- телеграм
+    'Москва',                                -- город
+    'hashed_password_here',                  -- сюда вставь хэш пароля
+    'REFCODE123',                            -- уникальный реферальный код
+    true,                                    -- активный
+    ARRAY['manager'::user_role]              -- роль
+);
+

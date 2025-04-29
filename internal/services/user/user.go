@@ -142,8 +142,6 @@ func (u *UserService) EditUser(ctx context.Context, userDTO dto.UserDTO) error {
 		user.ID = userID
 	}
 
-	fmt.Println(user)
-
 	err := u.UserRepository.UpdateUser(ctx, user)
 	if err != nil {
 		if errors.Is(err, storage.ErrUserIsNotUpdated) {

@@ -62,7 +62,9 @@ type EmailInfo struct {
 
 type BitrixConfig struct {
 	OutgoingWebhookAuth string `yaml:"outgoing_webhook_auth"`
+	AuthTokenComment    string `yaml:"auth_token_comment"`
 	IncomingWebhook     string `yaml:"incoming_webhook"`
+	FunnelID            string `yaml:"id_funnel"`
 }
 
 func MustLoad() *Config {

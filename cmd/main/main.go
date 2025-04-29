@@ -12,6 +12,7 @@ import (
 
 	AuthService "ia-online-golang/internal/services/auth"
 	BitrixService "ia-online-golang/internal/services/bitrix"
+	CommentService "ia-online-golang/internal/services/comment"
 	EmailService "ia-online-golang/internal/services/email"
 	LeadService "ia-online-golang/internal/services/lead"
 	PasswordCodeService "ia-online-golang/internal/services/passwordcode"
@@ -21,6 +22,7 @@ import (
 
 	AuthController "ia-online-golang/internal/http/controllers/auth"
 	BitrixController "ia-online-golang/internal/http/controllers/bitrix"
+	CommentController "ia-online-golang/internal/http/controllers/comment"
 	LeadController "ia-online-golang/internal/http/controllers/lead"
 	UserController "ia-online-golang/internal/http/controllers/user"
 	"ia-online-golang/internal/http/middleware"
@@ -56,7 +58,9 @@ func main() {
 
 	userService := UserService.New(log, storage)
 
-	leadService := LeadService.New(log, storage, userService, storage, bitrixService, storage)
+	commentService := CommentService.New(log, cfg.BitrixConfig.FunnelID, bitrixService, storage, storage)
+
+	leadService := LeadService.New(log, commentService, storage, userService, storage, bitrixService)
 
 	referralService := ReferralService.New(log, storage)
 
@@ -82,7 +86,8 @@ func main() {
 	authController := AuthController.New(log, validator, authService)
 	userController := UserController.New(log, validator, userService)
 	leadController := LeadController.New(log, validator, leadService)
-	bitrixController := BitrixController.New(log, cfg.BitrixConfig.OutgoingWebhookAuth, leadService)
+	commentController := CommentController.New(log, validator, commentService)
+	bitrixController := BitrixController.New(log, cfg.BitrixConfig.OutgoingWebhookAuth, cfg.BitrixConfig.AuthTokenComment, leadService, commentService)
 
 	// Создаём маршрутизатор
 	mux := http.NewServeMux()
@@ -96,7 +101,8 @@ func main() {
 	mux.HandleFunc("/api/v1/auth/refresh", authController.Refresh)
 	mux.HandleFunc("/api/v1/auth/recover", authController.SendNewPassword)
 
-	mux.HandleFunc("/api/v1/lead/edit", bitrixController.СhangingDeal)
+	mux.HandleFunc("/api/v1/bitrix/lead/edit", bitrixController.СhangingDeal)
+	mux.HandleFunc("/api/v1/bitrix/comment/new", bitrixController.NewComment)
 
 	// Защищённые маршруты (нужен JWT-токен)
 	protectedMux := http.NewServeMux()
@@ -108,6 +114,8 @@ func main() {
 	protectedMux.Handle("/api/v1/lead/save", middleware.RoleMiddleware("user")(http.HandlerFunc(leadController.SaveLead)))
 
 	protectedMux.Handle("/api/v1/auth/new_password", middleware.RoleMiddleware("user")(http.HandlerFunc(authController.NewPassword)))
+
+	protectedMux.Handle("/api/v1/comment/new", middleware.RoleMiddleware("user")(http.HandlerFunc(commentController.SaveComment)))
 
 	// Оборачиваем защищённые маршруты в JWTMiddleware
 	protectedRoutes := middleware.JWTMiddleware(context.Background(), tokenService)(protectedMux)
@@ -123,6 +131,8 @@ func main() {
 	finalMux.Handle("/api/v1/lead/save", protectedRoutes)
 
 	finalMux.Handle("/api/v1/auth/new_password", protectedRoutes)
+
+	finalMux.Handle("/api/v1/comment/new", protectedRoutes)
 
 	srv := &http.Server{
 		Addr:         cfg.HTTPServerConfig.Address,

@@ -1,10 +1,9 @@
-// internal/http/controllers/auth/auth.go
+// Package auth. Транспортный слой для авторизации.
 package auth
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"ia-online-golang/internal/dto"
@@ -47,6 +46,7 @@ func New(log *logrus.Logger, validator *validator.Validate, authService auth.Aut
 	}
 }
 
+// Функция для регистрации.
 func (a *AuthController) Registration(w http.ResponseWriter, r *http.Request) {
 	const op = "Controller.Registration"
 
@@ -69,6 +69,8 @@ func (a *AuthController) Registration(w http.ResponseWriter, r *http.Request) {
 		responses.InvalidRequest(w)
 		return
 	}
+
+	a.log.Debugf("%s: decodet completed", op)
 
 	// Валидируем данные
 	if err := a.validator.Struct(dto); err != nil {
@@ -121,34 +123,55 @@ func (a *AuthController) Registration(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(tokens)
 }
+
+// Функция для активации. Перекидывает после активации на страницу логина на сайте.
 func (a *AuthController) Activation(w http.ResponseWriter, r *http.Request) {
+	op := "Controller.Activation"
+
+	a.log.Debugf("%s: start", op)
+
 	if r.Method != http.MethodGet {
+		a.log.Infof("%s: method not allowed", op)
+
 		w.Header().Set("Allow", http.MethodGet)
 		responses.MethodNotAllowed(w)
 		return
 	}
 
+	a.log.Debugf("%s: method is correct", op)
+
 	w.Header().Set("Content-Type", "application/json")
 	activation_id := r.URL.Path[len("/api/v1/auth/activation/"):]
+
+	a.log.Debugf("%s: activation id received", op)
 
 	err := a.AuthService.ActivationUser(r.Context(), activation_id)
 	if err != nil {
 		if errors.Is(err, auth.ErrActiveLinkNotExists) {
+			a.log.Infof("%s: activation link not exists", op)
+
 			responses.ActivationLinkNotExists(w)
 			return
 		}
 
 		if errors.Is(err, auth.ErrActiveLinkExpired) {
+			a.log.Infof("%s: activation link expired", op)
+
 			responses.ActivationLinkExpired(w)
 			return
 		}
+		a.log.Errorf("%s: %v", op, err)
 
 		responses.ServerError(w)
 		return
 	}
 
+	a.log.Debugf("%s: activation is successful", op)
+
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
+
+// Функция для логина.
 func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	op := "Controller.Login"
 
@@ -156,7 +179,9 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
+
 		a.log.Infof("%s: method not allowed", op)
+
 		responses.MethodNotAllowed(w)
 		return
 	}
@@ -227,6 +252,8 @@ func (a *AuthController) Login(w http.ResponseWriter, r *http.Request) {
 	a.log.Infof("%s: tokens send", op)
 	json.NewEncoder(w).Encode(tokens)
 }
+
+// Функция для логаута.
 func (a *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -260,6 +287,8 @@ func (a *AuthController) Logout(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+// Функция для рефреша.
 func (a *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	op := "AuthController.Refresh"
 
@@ -320,6 +349,8 @@ func (a *AuthController) Refresh(w http.ResponseWriter, r *http.Request) {
 	a.log.Infof("%s: tokens send", op)
 	json.NewEncoder(w).Encode(tokens)
 }
+
+// Функция для изменения пароля.
 func (a *AuthController) NewPassword(w http.ResponseWriter, r *http.Request) {
 	op := "AuthController.NewPassword"
 
@@ -382,6 +413,8 @@ func (a *AuthController) NewPassword(w http.ResponseWriter, r *http.Request) {
 
 	responses.Ok(w)
 }
+
+// Функция для восстановления пароля. Отправляем новый пароль на почту, который сгенерирует система.
 func (a *AuthController) SendNewPassword(w http.ResponseWriter, r *http.Request) {
 	const op = "AuthController.SendNewPassword"
 
@@ -425,6 +458,8 @@ func (a *AuthController) SendNewPassword(w http.ResponseWriter, r *http.Request)
 
 	responses.Ok(w)
 }
+
+// Нереализованная функция для отправки кода восстановления пароля. Хотелось реализовать изменение пароля через код на почту. Оставил на будущее.
 func (a *AuthController) SendPasswordCode(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -456,6 +491,8 @@ func (a *AuthController) SendPasswordCode(w http.ResponseWriter, r *http.Request
 
 	responses.Ok(w)
 }
+
+// Нереализованная функция для получения кода восстановления пароля и нового пароля. Хотелось реализовать изменение пароля через код на почту. Оставил на будущее.
 func (a *AuthController) RecoverPassword(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -485,8 +522,6 @@ func (a *AuthController) RecoverPassword(w http.ResponseWriter, r *http.Request)
 			responses.PasswordCodeHasExpired(w)
 			return
 		}
-
-		fmt.Println(err)
 
 		responses.ServerError(w)
 		return

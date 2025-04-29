@@ -48,7 +48,7 @@ func (c *LeadController) SaveLead(w http.ResponseWriter, r *http.Request) {
 
 	c.log.Debugf("%s: method id correct", op)
 
-	var lead dto.LeadDTO
+	var lead dto.CreateLeadDTO
 	if err := json.NewDecoder(r.Body).Decode(&lead); err != nil {
 		c.log.Infof("%s: decode error", op)
 

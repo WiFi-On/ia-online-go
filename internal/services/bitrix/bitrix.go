@@ -12,7 +12,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// Структура EmailService для хранения настроек SMTP
 type BitrixService struct {
 	log     *logrus.Logger
 	webhook string
@@ -20,11 +19,12 @@ type BitrixService struct {
 
 type BitrixServiceI interface {
 	GetLead(ctx context.Context, id_deal int64) (ReturnDataDeal, error)
-	SendDeal(ctx context.Context, lead dto.LeadDTO, user dto.UserDTO) (ReturnDataCreate, error)
-	SendContact(ctx context.Context, dto dto.LeadDTO) (ReturnDataCreate, error)
+	GetComment(ctx context.Context, id_comment int64) (ReturnDataComment, error)
+	SendDeal(ctx context.Context, lead dto.CreateLeadDTO, user dto.UserDTO) (ReturnDataCreate, error)
+	SendContact(ctx context.Context, dto dto.CreateLeadDTO) (ReturnDataCreate, error)
+	SendComment(ctx context.Context, id_deal int64, comment string) (ReturnDataCreate, error)
 }
 
-// Конструктор для создания нового экземпляра EmailService
 func New(log *logrus.Logger, webhook string) *BitrixService {
 	return &BitrixService{
 		log:     log,
@@ -72,7 +72,91 @@ func (b *BitrixService) GetLead(ctx context.Context, id_deal int64) (ReturnDataD
 	return result, nil
 }
 
-func (b *BitrixService) SendDeal(ctx context.Context, lead dto.LeadDTO, user dto.UserDTO) (ReturnDataCreate, error) {
+func (b *BitrixService) GetComment(ctx context.Context, id_comment int64) (ReturnDataComment, error) {
+	const op = "BitrixService.GetComment"
+
+	data := map[string]any{
+		"ID": id_comment,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return ReturnDataComment{}, fmt.Errorf("%s: %v", op, err)
+	}
+
+	url := b.webhook + "crm.timeline.comment.get"
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return ReturnDataComment{}, fmt.Errorf("%s: %v", op, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ReturnDataComment{}, fmt.Errorf("%s: %v", op, err)
+	}
+
+	// Попробуем сначала распарсить как ошибку
+	var errData ErrorData
+	if err := json.Unmarshal(body, &errData); err == nil && errData.Error != "" {
+		return ReturnDataComment{}, fmt.Errorf("%s: %s - %s", op, errData.Error, errData.ErrorDescription)
+	}
+
+	// Если ошибки нет — пробуем распарсить как успешный ответ
+	var result ReturnDataComment
+	if err := json.Unmarshal(body, &result); err != nil {
+		return ReturnDataComment{}, fmt.Errorf("%s: %v", op, err)
+	}
+
+	return result, nil
+}
+
+func (b *BitrixService) SendComment(ctx context.Context, id_deal int64, comment string) (ReturnDataCreate, error) {
+	const op = "BitrixService.SendComment"
+
+	data := map[string]any{
+		"fields": map[string]any{
+			"ENTITY_ID":   id_deal,
+			"ENTITY_TYPE": "deal",
+			"COMMENT":     comment,
+		},
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return ReturnDataCreate{}, fmt.Errorf("%s: %v", op, err)
+	}
+
+	url := b.webhook + "crm.timeline.comment.add"
+
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return ReturnDataCreate{}, fmt.Errorf("%s: %v", op, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ReturnDataCreate{}, fmt.Errorf("%s: %v", op, err)
+	}
+
+	// Попробуем сначала распарсить как ошибку
+	var errData ErrorData
+	if err := json.Unmarshal(body, &errData); err == nil && errData.Error != "" {
+		return ReturnDataCreate{}, fmt.Errorf("%s: %s - %s", op, errData.Error, errData.ErrorDescription)
+	}
+
+	// Если ошибки нет — пробуем распарсить как успешный ответ
+	var result ReturnDataCreate
+	if err := json.Unmarshal(body, &result); err != nil {
+		return ReturnDataCreate{}, fmt.Errorf("%s: %v", op, err)
+	}
+
+	return result, nil
+}
+
+func (b *BitrixService) SendDeal(ctx context.Context, lead dto.CreateLeadDTO, user dto.UserDTO) (ReturnDataCreate, error) {
 	op := "BitrixService.SendLead"
 
 	contact, err := b.SendContact(ctx, lead)
@@ -142,7 +226,7 @@ func (b *BitrixService) SendDeal(ctx context.Context, lead dto.LeadDTO, user dto
 	return result, nil
 }
 
-func (b *BitrixService) SendContact(ctx context.Context, dto dto.LeadDTO) (ReturnDataCreate, error) {
+func (b *BitrixService) SendContact(ctx context.Context, dto dto.CreateLeadDTO) (ReturnDataCreate, error) {
 	op := "BitrixService.SendContact"
 
 	data := map[string]any{

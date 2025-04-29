@@ -8,6 +8,7 @@ import (
 	"ia-online-golang/internal/http/context_keys"
 	"ia-online-golang/internal/models"
 	"ia-online-golang/internal/services/bitrix"
+	"ia-online-golang/internal/services/comment"
 	"ia-online-golang/internal/services/user"
 	"ia-online-golang/internal/storage"
 	"strconv"
@@ -19,46 +20,46 @@ import (
 
 type LeadService struct {
 	log                *logrus.Logger
+	CommentService     comment.CommentServiceI
 	UserService        user.UserServiceI
 	BitrixService      bitrix.BitrixServiceI
 	LeadRepository     storage.LeadRepositoryI
 	ReferralRepository storage.ReferralRepositoryI
-	CommentRepository  storage.CommentsRepositoryI
 }
 
 type LeadServiceI interface {
-	Leads(ctx context.Context, filterDTO dto.LeadFilterDTO) ([]models.Lead, error)
+	Leads(ctx context.Context, filterDTO dto.LeadFilterDTO) ([]dto.LeadDTO, error)
 	GetUserPaymentStatistic(ctx context.Context, userID int64, startDate *time.Time, endDate *time.Time) (dto.UserStatistic, error)
-	SaveLead(ctx context.Context, lead dto.LeadDTO) error
+	SaveLead(ctx context.Context, lead dto.CreateLeadDTO) error
 	EditDeal(ctx context.Context, arrInfoBitrix []string) error
 }
 
 func New(
 	log *logrus.Logger,
+	commentService comment.CommentServiceI,
 	leadRepository storage.LeadRepositoryI,
 	userService user.UserServiceI,
 	referralRepository storage.ReferralRepositoryI,
 	bitrixService bitrix.BitrixServiceI,
-	commentRepository storage.CommentsRepositoryI,
 ) *LeadService {
 	return &LeadService{
 		log:                log,
+		CommentService:     commentService,
 		LeadRepository:     leadRepository,
 		UserService:        userService,
 		ReferralRepository: referralRepository,
 		BitrixService:      bitrixService,
-		CommentRepository:  commentRepository,
 	}
 }
 
-func (l *LeadService) Leads(ctx context.Context, filterDTO dto.LeadFilterDTO) ([]models.Lead, error) {
+func (l *LeadService) Leads(ctx context.Context, filterDTO dto.LeadFilterDTO) ([]dto.LeadDTO, error) {
 	const op = "LeadService.Leads"
 
 	if filterDTO.UserID == nil {
 		userIDValue := ctx.Value(context_keys.UserIDKey)
 		userID, ok := userIDValue.(int64)
 		if !ok {
-			return []models.Lead{}, fmt.Errorf("%s: error receiving userID ", op)
+			return []dto.LeadDTO{}, fmt.Errorf("%s: error receiving userID", op)
 		}
 		filterDTO.UserID = &userID
 	}
@@ -78,17 +79,51 @@ func (l *LeadService) Leads(ctx context.Context, filterDTO dto.LeadFilterDTO) ([
 	)
 	if err != nil {
 		if errors.Is(err, storage.ErrLeadsNotFound) {
-			return []models.Lead{}, nil
+			return []dto.LeadDTO{}, nil
 		}
 
 		l.log.Error("Error fetching leads", err)
 		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 
-	return leads, nil
+	var result []dto.LeadDTO
+
+	for _, lead := range leads {
+		leadResult := dto.LeadDTO{
+			ID:             lead.ID,
+			FIO:            lead.FIO,
+			Address:        lead.Address,
+			StatusID:       lead.StatusID,
+			PhoneNumber:    lead.PhoneNumber,
+			Internet:       lead.Internet,
+			Cleaning:       lead.Cleaning,
+			Shipping:       lead.Shipping,
+			CreatedAt:      lead.CreatedAt,
+			CompletedAt:    lead.CompletedAt,
+			PaymentAt:      lead.PaymentAt,
+			RewardInternet: lead.RewardInternet,
+			RewardCleaning: lead.RewardCleaning,
+			RewardShipping: lead.RewardShipping,
+		}
+
+		comments, err := l.CommentService.Comments(ctx, lead.ID)
+		if err != nil {
+			if errors.Is(err, comment.ErrCommentsNotFound) {
+				leadResult.Comments = []dto.CommentDTO{} // Пустой список, если нет комментариев
+			} else {
+				return nil, fmt.Errorf("%s: %w", op, err)
+			}
+		} else {
+			leadResult.Comments = comments
+		}
+
+		result = append(result, leadResult)
+	}
+
+	return result, nil
 }
 
-func (l *LeadService) SaveLead(ctx context.Context, lead dto.LeadDTO) error {
+func (l *LeadService) SaveLead(ctx context.Context, lead dto.CreateLeadDTO) error {
 	const op = "LeadService.SaveLead"
 
 	userIDValue := ctx.Value(context_keys.UserIDKey)
@@ -127,15 +162,11 @@ func (l *LeadService) SaveLead(ctx context.Context, lead dto.LeadDTO) error {
 		return fmt.Errorf("%s: %v", op, err)
 	}
 
-	comment := models.Comment{
-		LeadID: int64(bitrix_result.Result),
-		UserID: userID,
-		Text:   lead.Comment,
-	}
-
-	err = l.CommentRepository.SaveComment(ctx, comment)
-	if err != nil {
-		return fmt.Errorf("%s: %v", op, err)
+	if lead.Comment != "" {
+		_, err = l.CommentService.SaveComment(ctx, int64(bitrix_result.Result), lead.Comment)
+		if err != nil {
+			return fmt.Errorf("%s: %v", op, err)
+		}
 	}
 
 	return nil

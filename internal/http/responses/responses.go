@@ -39,6 +39,9 @@ func UserNotFound(w http.ResponseWriter) {
 func ReferralNotFound(w http.ResponseWriter) {
 	SendError(w, http.StatusConflict, "referral not found")
 }
+func LeadNotFound(w http.ResponseWriter) {
+	SendError(w, http.StatusConflict, "lead not found")
+}
 func ServerError(w http.ResponseWriter) {
 	SendError(w, http.StatusInternalServerError, "error server")
 }

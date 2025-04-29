@@ -12,14 +12,29 @@ type ReturnDataCreate struct {
 	Time   TimeInfo `json:"time"`
 }
 
+type ReturnDataComment struct {
+	Result InfoComment `json:"result"`
+	Time   TimeInfo    `json:"time"`
+}
+
 type InfoDeal struct {
 	ID              string `json:"ID"`
 	Title           string `json:"TITLE"`
 	Status          string `json:"STAGE_ID"`
 	ContactID       string `json:"CONTACT_ID"`
+	CategoryID      string `json:"CATEGORY_ID"`
 	InternetPayment string `json:"UF_CRM_1737451536004"`
 	CleaningPayment string `json:"UF_CRM_1744353480781"`
 	ShippingPayment string `json:"UF_CRM_1744354030686"`
+}
+
+type InfoComment struct {
+	ID         string `json:"ID"`
+	EntityID   string `json:"ENTITY_ID"`
+	EntityType string `json:"ENTITY_TYPE"`
+	Created    string `json:"CREATED"`
+	Comment    string `json:"COMMENT"`
+	AuthorID   string `json:"AUTHOR_ID"`
 }
 
 type TimeInfo struct {
