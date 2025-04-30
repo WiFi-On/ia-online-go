@@ -106,7 +106,7 @@ func (s *Storage) Leads(ctx context.Context, statusID *int64, startDate, endDate
 	}
 
 	if endDate != nil {
-		query += fmt.Sprintf(" AND completed_at <= $%d", argCount)
+		query += fmt.Sprintf(" AND created_at <= $%d", argCount)
 		args = append(args, *endDate)
 		argCount++
 	}

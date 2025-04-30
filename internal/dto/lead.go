@@ -52,9 +52,10 @@ type LeadFilterDTO struct {
 }
 
 type UserStatistic struct {
-	Internet  float64 `json:"internet"`
-	Cleaning  float64 `json:"cleaning"`
-	Shipping  float64 `json:"shipping"`
-	Referrals float64 `json:"referrals"`
-	Total     float64 `json:"total"`
+	StartDate *time.Time `json:"start_date"`
+	Internet  float64    `json:"internet"`
+	Cleaning  float64    `json:"cleaning"`
+	Shipping  float64    `json:"shipping"`
+	Referrals float64    `json:"referrals"`
+	Total     float64    `json:"total"`
 }

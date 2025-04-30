@@ -284,5 +284,7 @@ func (l *LeadService) GetUserPaymentStatistic(ctx context.Context, userID int64,
 
 	result.Total = result.Cleaning + result.Referrals + result.Internet + result.Shipping
 
+	result.StartDate = startDate
+
 	return result, nil
 }
