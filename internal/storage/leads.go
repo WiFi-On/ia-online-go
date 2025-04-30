@@ -147,6 +147,15 @@ func (s *Storage) Leads(ctx context.Context, statusID *int64, startDate, endDate
 		argCount++
 	}
 
+	// Приоритетная сортировка по status_id (если задан), затем по created_at
+	if statusID != nil {
+		query += fmt.Sprintf(" ORDER BY CASE WHEN status_id = $%d THEN 0 ELSE 1 END, created_at DESC", argCount)
+		args = append(args, *statusID)
+		argCount++
+	} else {
+		query += " ORDER BY created_at DESC"
+	}
+
 	if limit > 0 {
 		query += fmt.Sprintf(" LIMIT $%d", argCount)
 		args = append(args, limit)
