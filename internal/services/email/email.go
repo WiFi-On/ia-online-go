@@ -36,46 +36,69 @@ func New(smtpServer, smtpPort, email, password string) *EmailService {
 func (e *EmailService) SendEmail(ctx context.Context, toAddress, subject, body string) error {
 	op := "EmailService.SendEmail"
 
-	// Устанавливаем соединение с SMTP-сервером через TLS
 	serverAddr := e.SMTPServer + ":" + e.SMTPPort
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: false, // Установите true, если самоподписанный сертификат (не рекомендуется)
-		ServerName:         e.SMTPServer,
-	}
 
-	conn, err := tls.Dial("tcp", serverAddr, tlsConfig)
-	if err != nil {
-		return fmt.Errorf("%s: ошибка TLS-соединения: %w", op, err)
-	}
-	defer conn.Close()
+	// --- 1. Пробуем установить соединение ---
+	var client *smtp.Client
+	var err error
 
-	// Создаём новый SMTP клиент поверх TLS-соединения
-	client, err := smtp.NewClient(conn, e.SMTPServer)
-	if err != nil {
-		return fmt.Errorf("%s: ошибка создания SMTP клиента: %w", op, err)
-	}
-	defer client.Quit()
+	switch e.SMTPPort {
+	case "465": // SSL (чистый TLS)
+		// Подключение по TLS
+		tlsConfig := &tls.Config{
+			ServerName:         e.SMTPServer,
+			InsecureSkipVerify: false, // true — только если внутренний сервер с самоподписанным сертификатом
+		}
 
-	// Аутентификация
+		conn, err := tls.Dial("tcp", serverAddr, tlsConfig)
+		if err != nil {
+			return fmt.Errorf("%s: ошибка TLS-подключения (465): %w", op, err)
+		}
+
+		client, err = smtp.NewClient(conn, e.SMTPServer)
+		if err != nil {
+			return fmt.Errorf("%s: ошибка создания SMTP клиента: %w", op, err)
+		}
+
+	default: // 587 и прочие
+		// Подключение без TLS, потом STARTTLS
+		client, err = smtp.Dial(serverAddr)
+		if err != nil {
+			return fmt.Errorf("%s: ошибка подключения (587): %w", op, err)
+		}
+
+		if ok, _ := client.Extension("STARTTLS"); ok {
+			tlsConfig := &tls.Config{
+				ServerName:         e.SMTPServer,
+				InsecureSkipVerify: false,
+			}
+			if err = client.StartTLS(tlsConfig); err != nil {
+				return fmt.Errorf("%s: ошибка запуска STARTTLS: %w", op, err)
+			}
+		}
+	}
+	defer func() { _ = client.Quit() }()
+
+	// --- 2. Аутентификация ---
 	auth := smtp.PlainAuth("", e.Email, e.Password, e.SMTPServer)
-	if err := client.Auth(auth); err != nil {
-		return fmt.Errorf("%s: ошибка аутентификации: %w", op, err)
+	if ok, _ := client.Extension("AUTH"); ok {
+		if err := client.Auth(auth); err != nil {
+			return fmt.Errorf("%s: ошибка аутентификации SMTP: %w", op, err)
+		}
 	}
 
-	// Устанавливаем адрес отправителя
+	// --- 3. Отправка письма ---
 	if err := client.Mail(e.Email); err != nil {
-		return fmt.Errorf("%s: ошибка установки отправителя: %w", op, err)
+		return fmt.Errorf("%s: ошибка MAIL FROM: %w", op, err)
 	}
 
-	// Указываем получателя
 	if err := client.Rcpt(toAddress); err != nil {
-		return fmt.Errorf("%s: ошибка установки получателя: %w", op, err)
+		return fmt.Errorf("%s: ошибка RCPT TO: %w", op, err)
 	}
 
-	// Записываем сообщение в SMTP-соединение
 	w, err := client.Data()
 	if err != nil {
-		return fmt.Errorf("%s: ошибка открытия потока для данных: %w", op, err)
+		return fmt.Errorf("%s: ошибка открытия потока для письма: %w", op, err)
 	}
 
 	message := fmt.Sprintf(
@@ -83,19 +106,16 @@ func (e *EmailService) SendEmail(ctx context.Context, toAddress, subject, body s
 			"To: %s\r\n"+
 			"Subject: %s\r\n"+
 			"MIME-Version: 1.0\r\n"+
-			"Content-Type: text/html; charset=UTF-8\r\n"+
-			"Content-Transfer-Encoding: 7bit\r\n\r\n"+
-			"%s",
+			"Content-Type: text/html; charset=UTF-8\r\n\r\n%s",
 		e.Email, toAddress, subject, body,
 	)
 
-	_, err = w.Write([]byte(message))
-	if err != nil {
-		return fmt.Errorf("%s: ошибка записи сообщения: %w", op, err)
+	if _, err = w.Write([]byte(message)); err != nil {
+		return fmt.Errorf("%s: ошибка записи письма: %w", op, err)
 	}
-	err = w.Close()
-	if err != nil {
-		return fmt.Errorf("%s: ошибка закрытия потока данных: %w", op, err)
+
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("%s: ошибка закрытия потока письма: %w", op, err)
 	}
 
 	return nil
