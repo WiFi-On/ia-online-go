@@ -80,6 +80,8 @@ func New(
 func (a *AuthService) RegistrationUser(ctx context.Context, registerDTO dto.RegisterUserDTO) (dto.AuthTokensDTO, error) {
 	const op = "AuthService.RegistrationUser"
 
+	a.log.Debugf("%s: start with email %s", op, registerDTO.Email)
+
 	if registerDTO.ReferralCode != "" {
 		_, err := a.UserRepository.UserByReferralCode(ctx, registerDTO.ReferralCode)
 		if err != nil {
@@ -91,12 +93,16 @@ func (a *AuthService) RegistrationUser(ctx context.Context, registerDTO dto.Regi
 		}
 	}
 
+	a.log.Debugf("%s: generating password hash", op)
+
 	passHash, err := bcrypt.GenerateFromPassword([]byte(registerDTO.Password), bcrypt.DefaultCost)
 	if err != nil {
 		a.log.Error(err)
 
 		return dto.AuthTokensDTO{}, fmt.Errorf("%s: %w", op, err)
 	}
+
+	a.log.Debugf("%s: saving user to database", op)
 
 	userDTO, err := a.UserService.SaveUser(ctx, registerDTO, string(passHash))
 	if err != nil {
@@ -109,6 +115,8 @@ func (a *AuthService) RegistrationUser(ctx context.Context, registerDTO dto.Regi
 		return dto.AuthTokensDTO{}, fmt.Errorf("%s: %w", op, err)
 	}
 
+	a.log.Debugf("%s: user saved with ID %d", op, *userDTO.ID)
+
 	if registerDTO.ReferralCode != "" {
 		err = a.ReferralRepository.SaveReferral(ctx, *userDTO.ID, registerDTO.ReferralCode)
 		if err != nil {
@@ -118,6 +126,8 @@ func (a *AuthService) RegistrationUser(ctx context.Context, registerDTO dto.Regi
 		}
 	}
 
+	a.log.Debugf("%s: sending activation link to email %s", op, registerDTO.Email)
+
 	err = a.SendActivationLink(ctx, *userDTO.ID, registerDTO.Email)
 	if err != nil {
 		a.log.Error(err)
@@ -125,12 +135,16 @@ func (a *AuthService) RegistrationUser(ctx context.Context, registerDTO dto.Regi
 		return dto.AuthTokensDTO{}, fmt.Errorf("%s: %w", op, err)
 	}
 
+	a.log.Debugf("%s: creating user tokens", op)
+
 	tokens, err := a.TokenService.CreateUserTokens(ctx, *userDTO.ID)
 	if err != nil {
 		a.log.Error(err)
 
 		return dto.AuthTokensDTO{}, fmt.Errorf("%s: %w", op, err)
 	}
+
+	a.log.Debugf("%s: user tokens created", op)
 
 	return tokens, nil
 }

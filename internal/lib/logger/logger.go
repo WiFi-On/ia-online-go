@@ -40,6 +40,12 @@ func SetupLogger(env string) *logrus.Logger {
 
 	// Настройка логирования в зависимости от окружения
 	switch env {
+	case "debug":
+		log.SetLevel(logrus.DebugLevel) // В режиме отладки логируем всё
+		log.SetFormatter(&logrus.TextFormatter{
+			FullTimestamp:   true,                  // Добавляем полные метки времени
+			TimestampFormat: "2006-01-02 15:04:05", // Настройка формата времени
+		})
 	case "prod":
 		log.SetLevel(logrus.InfoLevel)            // В продакшене логируем только предупреждения и ошибки
 		log.SetFormatter(&logrus.JSONFormatter{}) // В продакшене выводим логи в формате JSON
